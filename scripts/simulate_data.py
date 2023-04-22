@@ -1,4 +1,5 @@
-
+import random
+import string
 import pandas as pd
 
 # Generate simulated data
