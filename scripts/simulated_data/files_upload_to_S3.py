@@ -6,7 +6,7 @@ from simulate_data import simulate_data
 
 df_advertiser_ids, df_product_views, df_ads_views = simulate_data()
 dfs = [df_advertiser_ids, df_product_views, df_ads_views]
-s3_objects = ["ads_views.csv", "advertiser_ids.csv", "product_views.csv"]
+s3_objects = ["advertiser_ids.csv", "product_views.csv", "ads_views.csv"]
 
 # Get environment variables
 USER = os.getenv('ACCESS_KEY')
