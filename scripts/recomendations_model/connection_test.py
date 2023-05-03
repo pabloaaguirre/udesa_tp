@@ -11,7 +11,9 @@ def load_filter_files(bucket_name: str, files_list: list):
     '''
     # S3 client
     s3 = boto3.client("s3")
-
+    
+    print("Connection ready")
+    
     # Downloading files
     for i in range(len(files_list)):
         s3.download_file(Bucket=bucket_name,
