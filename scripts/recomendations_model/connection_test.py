@@ -18,7 +18,7 @@ def load_filter_files(bucket_name: str, files_list: list):
     for i in range(len(files_list)):
         s3.download_file(Bucket=bucket_name,
                             Key=files_list[i],
-                            Filename="file.csv") #f"{TEMP_DATA_PATH}{files_list[i]}")
+                            Filename=f"{TEMP_DATA_PATH}{files_list[i]}")
     
     print("All files downloaded")
 
