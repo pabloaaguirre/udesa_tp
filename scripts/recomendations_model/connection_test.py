@@ -5,21 +5,12 @@ from io import StringIO
 
 TEMP_DATA_PATH = os.getcwd() + "/temp_data/"
 
-def S3_conn():
-    # Get environment variables
-    #USER = os.getenv('ACCESS_KEY')
-    #PASSWORD = os.environ.get('SECRET_KEY')
-    print(os.getcwd())
-    s3 = boto3.client("s3")
-                     #aws_access_key_id=USER,
-                     #aws_secret_access_key=PASSWORD)
-
 def load_filter_files(bucket_name: str, files_list: list):
     '''
     Reads all files from the database in S3 and filter active advertisers
     '''
     # S3 client
-    s3 = S3_conn()
+    s3 = boto3.client("s3")
 
     # Downloading files
     for i in range(len(files_list)):
