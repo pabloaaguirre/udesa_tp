@@ -3,9 +3,6 @@ import datetime
 from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
-from airflow.utils.task_group import TaskGroup
-from airflow.models.connection import Connection
-import numpy as np
 import pandas as pd
 import boto3
 import os
@@ -24,18 +21,18 @@ with DAG(
 
     def S3_conn():
         # Get environment variables
-        USER = os.getenv('ACCESS_KEY')
-        PASSWORD = os.environ.get('SECRET_KEY')
-        print(os.getcwd())
+        #USER = os.getenv('ACCESS_KEY')
+        #PASSWORD = os.environ.get('SECRET_KEY')
+        #print(os.getcwd())
 
-        s3 = boto3.client("s3",
-                        aws_access_key_id=USER,
-                        aws_secret_access_key=PASSWORD)
+        s3 = boto3.client("s3")
+                        #aws_access_key_id=USER,
+                        #aws_secret_access_key=PASSWORD)
         
         return s3
     
     def rds_conn():
-        PASSWORD = os.environ.get('RDS_PASS')
+        PASSWORD = "pass"#os.environ.get('RDS_PASS')
         engine = psycopg2.connect(
             database="postgres",
             user="postgres",
