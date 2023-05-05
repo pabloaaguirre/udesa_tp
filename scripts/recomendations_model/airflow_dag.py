@@ -19,18 +19,6 @@ with DAG(
     catchup=False,
 ) as dag:
     
-    def rds_conn():
-        PASSWORD = "pass"#os.environ.get('RDS_PASS')
-        engine = psycopg2.connect(
-            database="postgres",
-            user="postgres",
-            password=PASSWORD,
-            host="udesa-database-1.codj3onk47ac.us-east-2.rds.amazonaws.com",
-            port="5432"
-        )
-
-        return engine
-
 
     def clean_temp_data():
         '''
@@ -88,24 +76,6 @@ with DAG(
                         Key="airflow/product_views_filtered.csv")
 
         print("product_views uploaded")
-
-        #with StringIO() as csv_buffer:
-        #    ads_views.to_csv(csv_buffer, index=False)
-        #    response = s3.put_object(
-        #        Bucket=bucket_name, Key="airflow/ads_views_filtered.csv",
-        #        Body=csv_buffer.getvalue()
-        #    )
-
-        #print("ad_views uploaded")
-        
-        #with StringIO() as csv_buffer:
-        #    product_views.to_csv(csv_buffer, index=False)
-        #    response = s3.put_object(
-        #        Bucket=bucket_name, Key=f"airflow/product_views_filtered.csv",
-        #        Body=csv_buffer.getvalue()
-        #    )
-
-        #print("product_views uploaded")
     
 
     def top_product(bucket_name: str):
@@ -175,6 +145,76 @@ with DAG(
             print(row)
 
 
+    def top_ctr(bucket_name: str):
+        """
+        Recomendation model based on products with maximum CTR metric per advertiser
+        """
+         # S3 client
+        s3 = boto3.client("s3")
+
+        # Downloading file
+        s3.download_file(Bucket=bucket_name,
+                        Key="airflow/ads_views_filtered.csv",
+                        Filename=f"{TEMP_DATA_PATH}ads_views_filtered.csv")
+        
+        print("All files downloaded")
+
+        # Files to DataFrames
+        ads_views = pd.read_csv(f"{TEMP_DATA_PATH}ads_views_filtered.csv")
+
+        # Top CTR calculation
+        impressions = ads_views[ads_views.type == "impression"][['advertiser_id', 'product_id', 'type']]
+        impressions = impressions.groupby(by=["advertiser_id", "product_id"], as_index=False).count()
+        impressions.rename(columns={"type" : "impressions"}, inplace=True)
+
+        clicks = ads_views[ads_views.type == "click"][['advertiser_id', 'product_id', 'type']]
+        clicks = clicks.groupby(by=["advertiser_id", "product_id"], as_index=False).count()
+        clicks.rename(columns={"type" : "clicks"}, inplace=True)
+
+        ctr_data = impressions.merge(clicks, how="left", on=["advertiser_id", "product_id"]).fillna(0)
+        ctr_data["CTR"] = ctr_data.clicks / ctr_data.impressions
+        max_ctr = ctr_data.groupby(by=["advertiser_id"])["CTR"].max()
+        ctr_data = ctr_data.merge(max_ctr, how="left", on="advertiser_id", suffixes=("","_max"))
+
+        top_ctr = ctr_data[ctr_data.CTR == ctr_data.CTR_max]
+        top_ctr = top_ctr.groupby("advertiser_id").head(1)
+        
+        # RDS Connection
+        engine = psycopg2.connect(
+            database="postgres",
+            user="postgres",
+            password="pepito123",
+            host="udesa-database-1.codj3onk47ac.us-east-2.rds.amazonaws.com",
+            port="5432")
+        
+        cursor = engine.cursor()
+        cursor.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS recomendations (
+                        advertiser_id VARCHAR(255) PRIMARY KEY,
+                        product_id VARCHAR(255),
+                        model VARCHAR(255)
+                    );
+                    """
+                )
+        
+        for i in range(len(top_ctr)):
+
+            adv_id = top_ctr.advertiser_id.iloc[i]
+            prod_id = top_ctr.product_id.iloc[i]
+            cursor.execute(
+                f"""
+                INSERT INTO recomendations(advertiser_id, product_id, model)
+                VALUES ('{adv_id}', '{prod_id}', 'top_CTR');
+                """
+            )
+
+        cursor.execute("""SELECT * FROM recomendations;""")
+        rows = cursor.fetchall()
+        for row in rows:
+            print(row)
+
+
     ## Tasks -----------------------------------------------------------------------------
     clean_temp_data = PythonOperator(
         task_id='clean_temp_data',
@@ -201,3 +241,13 @@ with DAG(
     )
 
     load_filter_files >> top_product
+
+    top_ctr = PythonOperator(
+        task_id="top_ctr",
+        python_callable=top_ctr,
+        op_kwargs={
+            "bucket_name" : "raw-ads-database-tp-programacion-avanzada"
+        }
+    )
+
+    load_filter_files >> top_ctr
