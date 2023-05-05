@@ -63,7 +63,7 @@ def rds_conn_test():
     cursor = engine.cursor()
     cursor.execute(
                 """
-                CREATE TABLE recomendations (
+                CREATE TABLE IF NOT EXISTS recomendations (
                     advertiser_id VARCHAR(255) PRIMARY KEY,
                     product_id VARCHAR(255),
                     model VARCHAR(255)
