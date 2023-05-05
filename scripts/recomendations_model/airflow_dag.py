@@ -57,6 +57,7 @@ with DAG(
             s3.download_file(Bucket=bucket_name,
                              Key=files_list[i],
                              Filename=f"{TEMP_DATA_PATH}{files_list[i]}")
+        
         print("All files downloaded")
 
         # Files to DataFrames
@@ -68,22 +69,43 @@ with DAG(
         ads_views = ads_views.merge(right=advertiser_ids, how="inner", on="advertiser_id")
         product_views = product_views.merge(right=advertiser_ids, how="inner", on="advertiser_id")
         
+        print("Dataframes filtered")
+
+        ads_views.to_csv(f"{TEMP_DATA_PATH}ads_views_filtered.csv")
+        product_views.to_csv(f"{TEMP_DATA_PATH}product_views_filtered.csv")
+
+        print("Filtered files saved locally")
+
         # Uploading files
-        with StringIO() as csv_buffer:
-            ads_views.to_csv(csv_buffer, index=False)
-            response = s3.put_object(
-                Bucket=bucket_name, Key="airflow/ads_views_filtered.csv",
-                Body=csv_buffer.getvalue()
-            )
+        s3.upload_file(Filename=f"{TEMP_DATA_PATH}ads_views_filtered.csv",
+                    Bucket=bucket_name,
+                    Key="airflow/ads_views_filtered.csv")
+
         print("ad_views uploaded")
-        
-        with StringIO() as csv_buffer:
-            product_views.to_csv(csv_buffer, index=False)
-            response = s3.put_object(
-                Bucket=bucket_name, Key=f"airflow/product_views_filtered.csv",
-                Body=csv_buffer.getvalue()
-            )
+
+        s3.upload_file(Filename=f"{TEMP_DATA_PATH}product_views_filtered.csv",
+                        Bucket=bucket_name,
+                        Key="airflow/product_views_filtered.csv")
+
         print("product_views uploaded")
+
+        #with StringIO() as csv_buffer:
+        #    ads_views.to_csv(csv_buffer, index=False)
+        #    response = s3.put_object(
+        #        Bucket=bucket_name, Key="airflow/ads_views_filtered.csv",
+        #        Body=csv_buffer.getvalue()
+        #    )
+
+        #print("ad_views uploaded")
+        
+        #with StringIO() as csv_buffer:
+        #    product_views.to_csv(csv_buffer, index=False)
+        #    response = s3.put_object(
+        #        Bucket=bucket_name, Key=f"airflow/product_views_filtered.csv",
+        #        Body=csv_buffer.getvalue()
+        #    )
+
+        #print("product_views uploaded")
     
 
     def top_product(bucket_name: str):
