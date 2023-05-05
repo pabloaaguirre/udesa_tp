@@ -117,11 +117,17 @@ with DAG(
         top_products = views_per_product[views_per_product["product_views"] == views_per_product["max_views"]]
         top_products = top_products.groupby(by=["advertiser_id", "product_id"]).head(1)[["advertiser_id", "product_id"]]
         
-        engine = rds_conn()
+        engine = psycopg2.connect(
+        database="postgres",
+        user="postgres",
+        password="pepito123",
+        host="udesa-database-1.codj3onk47ac.us-east-2.rds.amazonaws.com",
+        port="5432")
+    
         cursor = engine.cursor()
         cursor.execute(
             """
-            CREATE TABLE [IF NOT EXISTS] recomendations (
+            CREATE TABLE recomendations (
                 advertiser_id VARCHAR(255) PRIMARY KEY,
                 product_id VARCHAR(255),
                 model VARCHAR(255)
@@ -130,7 +136,7 @@ with DAG(
         )
 
         cursor.execute(
-            """"
+            """
             INSERT INTO recomendations(advertiser_id, product_id, model)
             VALUES (advertiser123, product123,top_product);
             """
