@@ -137,13 +137,13 @@ with DAG(
                 )
 
         for i in range(len(top_products)):
-            
+
             adv_id = top_products.advertiser_id.iloc[i]
             prod_id = top_products.product_id.iloc[i]
             cursor.execute(
                 f"""
                 INSERT INTO recomendations(advertiser_id, product_id, model)
-                VALUES ({adv_id}, {prod_id}, 'top_product');
+                VALUES ('{adv_id}', '{prod_id}', 'top_product');
                 """
             )
 

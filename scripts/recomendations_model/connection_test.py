@@ -61,22 +61,6 @@ def rds_conn_test():
         port="5432")
     
     cursor = engine.cursor()
-    cursor.execute(
-                """
-                CREATE TABLE IF NOT EXISTS recomendations (
-                    advertiser_id VARCHAR(255) PRIMARY KEY,
-                    product_id VARCHAR(255),
-                    model VARCHAR(255)
-                );
-                """
-            )
-
-    cursor.execute(
-        """
-        INSERT INTO recomendations(advertiser_id, product_id, model)
-        VALUES ('advertiser123', 'product123', 'top_product');
-        """
-    )
 
     cursor.execute("""SELECT * FROM recomendations;""")
     rows = cursor.fetchall()
