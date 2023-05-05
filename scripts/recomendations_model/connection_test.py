@@ -2,6 +2,7 @@ import pandas as pd
 import boto3
 import os
 from io import StringIO
+import psycopg2
 
 TEMP_DATA_PATH = os.getcwd() + "/temp_data/"
 
@@ -51,5 +52,32 @@ def load_filter_files(bucket_name: str, files_list: list):
     print("product_views uploaded")
 
 
-load_filter_files(bucket_name="raw-ads-database-tp-programacion-avanzada",
-            files_list=["ads_views.csv", "advertiser_ids.csv", "product_views.csv"])
+def rds_conn_test():
+    engine = psycopg2.connect(
+        database="postgres",
+        user="postgres",
+        password="pepito123",
+        host="udesa-database-1.codj3onk47ac.us-east-2.rds.amazonaws.com",
+        port="5432")
+    
+    cursor = engine.cursor()
+    cursor.execute(
+        """
+        CREATE TABLE [IF NOT EXISTS] recomendations (
+            advertiser_id VARCHAR(255) PRIMARY KEY,
+            product_id VARCHAR(255),
+            model VARCHAR(255)
+        );
+        """
+    )
+
+    cursor.execute(
+        """"
+        INSERT INTO recomendations(advertiser_id, product_id, model)
+        VALUES (advertiser123, product123,top_product);
+        """
+    )
+
+rds_conn_test()
+#load_filter_files(bucket_name="raw-ads-database-tp-programacion-avanzada",
+#            files_list=["ads_views.csv", "advertiser_ids.csv", "product_views.csv"])

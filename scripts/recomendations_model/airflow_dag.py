@@ -18,18 +18,6 @@ with DAG(
     start_date=datetime.datetime(2022, 4, 1),
     catchup=False,
 ) as dag:
-
-    def S3_conn():
-        # Get environment variables
-        #USER = os.getenv('ACCESS_KEY')
-        #PASSWORD = os.environ.get('SECRET_KEY')
-        #print(os.getcwd())
-
-        s3 = boto3.client("s3")
-                        #aws_access_key_id=USER,
-                        #aws_secret_access_key=PASSWORD)
-        
-        return s3
     
     def rds_conn():
         PASSWORD = "pass"#os.environ.get('RDS_PASS')
@@ -62,7 +50,7 @@ with DAG(
         Reads all files from the database in S3 and filter active advertisers
         '''
         # S3 client
-        s3 = S3_conn()
+        s3 = boto3.client("s3")
 
         # Downloading files
         for i in range(len(files_list)):
@@ -103,7 +91,7 @@ with DAG(
         Recomendation model based on most visited products of an advertiser
         """
         # S3 client
-        s3 = S3_conn()
+        s3 = boto3.client("s3")
 
         # Downloading file
         s3.download_file(Bucket=bucket_name,
