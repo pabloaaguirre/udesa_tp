@@ -173,3 +173,5 @@ with DAG(
             "bucket_name" : "raw-ads-database-tp-programacion-avanzada"
         }
     )
+
+    load_filter_files >> top_product
