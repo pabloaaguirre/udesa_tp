@@ -62,7 +62,7 @@ def rds_conn_test():
     
     cursor = engine.cursor()
 
-    cursor.execute("""SELECT * FROM recomendations;""")
+    cursor.execute("""SELECT * FROM udesa-database-1.recomendations;""")
     rows = cursor.fetchall()
     for row in rows:
         print(row)
