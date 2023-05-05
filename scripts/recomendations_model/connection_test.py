@@ -74,7 +74,7 @@ def rds_conn_test():
     cursor.execute(
         """"
         INSERT INTO recomendations(advertiser_id, product_id, model)
-        VALUES (advertiser123, product123,top_product);
+        VALUES ('advertiser123', 'product123', 'top_product');
         """
     )
 
