@@ -117,30 +117,40 @@ with DAG(
         top_products = views_per_product[views_per_product["product_views"] == views_per_product["max_views"]]
         top_products = top_products.groupby(by=["advertiser_id", "product_id"]).head(1)[["advertiser_id", "product_id"]]
         
+        # RDS Connection
         engine = psycopg2.connect(
-        database="postgres",
-        user="postgres",
-        password="pepito123",
-        host="udesa-database-1.codj3onk47ac.us-east-2.rds.amazonaws.com",
-        port="5432")
-    
+            database="postgres",
+            user="postgres",
+            password="pepito123",
+            host="udesa-database-1.codj3onk47ac.us-east-2.rds.amazonaws.com",
+            port="5432")
+        
         cursor = engine.cursor()
         cursor.execute(
-            """
-            CREATE TABLE recomendations (
-                advertiser_id VARCHAR(255) PRIMARY KEY,
-                product_id VARCHAR(255),
-                model VARCHAR(255)
-            );
-            """
-        )
+                    """
+                    CREATE TABLE IF NOT EXISTS recomendations (
+                        advertiser_id VARCHAR(255) PRIMARY KEY,
+                        product_id VARCHAR(255),
+                        model VARCHAR(255)
+                    );
+                    """
+                )
 
-        cursor.execute(
-            """
-            INSERT INTO recomendations(advertiser_id, product_id, model)
-            VALUES (advertiser123, product123,top_product);
-            """
-        )
+        for i in range(len(top_products)):
+            
+            adv_id = top_products.advertiser_id.iloc[i]
+            prod_id = top_products.product_id.iloc[i]
+            cursor.execute(
+                f"""
+                INSERT INTO recomendations(advertiser_id, product_id, model)
+                VALUES ({adv_id}, {prod_id}, 'top_product');
+                """
+            )
+
+        cursor.execute("""SELECT * FROM recomendations;""")
+        rows = cursor.fetchall()
+        for row in rows:
+            print(row)
 
 
     ## Tasks -----------------------------------------------------------------------------
