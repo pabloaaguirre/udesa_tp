@@ -115,7 +115,7 @@ with DAG(
                                                     on="advertiser_id")
 
         top_products = views_per_product[views_per_product["product_views"] == views_per_product["max_views"]]
-        top_products = top_products.groupby(by=["advertiser_id", "product_id"]).head(1)[["advertiser_id", "product_id"]]
+        top_products = top_products.groupby(by=["advertiser_id"]).head(1)
         
         # RDS Connection
         engine = psycopg2.connect(
