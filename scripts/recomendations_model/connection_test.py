@@ -73,7 +73,7 @@ def load_filter_files(bucket_name: str, files_list: list):
 
 def rds_conn_test():
     engine = psycopg2.connect(
-        database="postgres",
+        dbname="postgres",
         user="postgres",
         password="pepito123",
         host="udesa-database-1.codj3onk47ac.us-east-2.rds.amazonaws.com",
