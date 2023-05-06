@@ -118,15 +118,15 @@ with DAG(
             port="5432")
         
         cursor = engine.cursor()
-        cursor.execute(
-                    """
-                    CREATE TABLE IF NOT EXISTS recomendations (
-                        advertiser_id VARCHAR(255) PRIMARY KEY,
-                        product_id VARCHAR(255),
-                        model VARCHAR(255)
-                    );
-                    """
-                )
+        # cursor.execute(
+        #             """
+        #             CREATE TABLE IF NOT EXISTS recomendations (
+        #                 advertiser_id VARCHAR(255) PRIMARY KEY,
+        #                 product_id VARCHAR(255),
+        #                 model VARCHAR(255)
+        #             );
+        #             """
+        #         )
 
         for i in range(len(top_products)):
 
@@ -188,15 +188,15 @@ with DAG(
             port="5432")
         
         cursor = engine.cursor()
-        cursor.execute(
-                    """
-                    CREATE TABLE IF NOT EXISTS recomendations (
-                        advertiser_id VARCHAR(255) PRIMARY KEY,
-                        product_id VARCHAR(255),
-                        model VARCHAR(255)
-                    );
-                    """
-                )
+        # cursor.execute(
+        #             """
+        #             CREATE TABLE IF NOT EXISTS recomendations (
+        #                 advertiser_id VARCHAR(255) PRIMARY KEY,
+        #                 product_id VARCHAR(255),
+        #                 model VARCHAR(255)
+        #             );
+        #             """
+        #         )
         
         for i in range(len(top_ctr)):
 
