@@ -81,10 +81,14 @@ def rds_conn_test():
     
     cursor = engine.cursor()
 
-    cursor.execute("""select * from information_schema""")
-    rows = cursor.fetchall()
-    for row in rows:
-        print(row)
+    cursor.execute(f"""
+                INSERT INTO recomendations(advertiser_id, product_id, model)
+                VALUES ('pepito', 'pepito', 'top_CTR');
+                """)
+
+    # rows = cursor.fetchall()
+    # for row in rows:
+    #     print(row)
 
 rds_conn_test()
 #load_filter_files(bucket_name="raw-ads-database-tp-programacion-avanzada",
