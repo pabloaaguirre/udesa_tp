@@ -134,12 +134,12 @@ with DAG(
             prod_id = top_products.product_id.iloc[i]
             cursor.execute(
                 f"""
-                INSERT INTO postgres.recomendations(advertiser_id, product_id, model)
+                INSERT INTO recomendations(advertiser_id, product_id, model)
                 VALUES ('{adv_id}', '{prod_id}', 'top_product');
                 """
             )
 
-        cursor.execute("""SELECT * FROM postgres.recomendations;""")
+        cursor.execute("""SELECT * FROM recomendations;""")
         rows = cursor.fetchall()
         for row in rows:
             print(row)
@@ -204,12 +204,12 @@ with DAG(
             prod_id = top_ctr.product_id.iloc[i]
             cursor.execute(
                 f"""
-                INSERT INTO postgres.recomendations(advertiser_id, product_id, model)
+                INSERT INTO recomendations(advertiser_id, product_id, model)
                 VALUES ('{adv_id}', '{prod_id}', 'top_CTR');
                 """
             )
 
-        cursor.execute("""SELECT * FROM postgres.recomendations;""")
+        cursor.execute("""SELECT * FROM recomendations;""")
         rows = cursor.fetchall()
         for row in rows:
             print(row)
