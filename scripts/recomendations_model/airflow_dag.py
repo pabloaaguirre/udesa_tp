@@ -120,7 +120,7 @@ with DAG(
         cursor = engine.cursor()
         cursor.execute(
                     """
-                    CREATE GLOBAL TABLE IF NOT EXISTS recomendations (
+                    CREATE TABLE IF NOT EXISTS recomendations (
                         advertiser_id VARCHAR(255) PRIMARY KEY,
                         product_id VARCHAR(255),
                         model VARCHAR(255)
@@ -190,7 +190,7 @@ with DAG(
         cursor = engine.cursor()
         cursor.execute(
                     """
-                    CREATE TABLE GLOBAL IF NOT EXISTS recomendations (
+                    CREATE TABLE IF NOT EXISTS recomendations (
                         advertiser_id VARCHAR(255) PRIMARY KEY,
                         product_id VARCHAR(255),
                         model VARCHAR(255)
