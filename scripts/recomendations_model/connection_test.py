@@ -81,7 +81,7 @@ def rds_conn_test():
     
     cursor = engine.cursor()
 
-    cursor.execute("""SHOW TABLES;""")
+    cursor.execute("""select * from information_schema""")
     rows = cursor.fetchall()
     for row in rows:
         print(row)
