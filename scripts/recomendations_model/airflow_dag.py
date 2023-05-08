@@ -109,47 +109,23 @@ with DAG(
         top_products = views_per_product[views_per_product["product_views"] == views_per_product["max_views"]]
         top_products = top_products.groupby(by=["advertiser_id"]).head(1)
         
-        # RDS Connection
-        engine = psycopg2.connect(
-            database="postgres",
-            user="postgres",
-            password="pepito123",
-            host="udesa-database-1.codj3onk47ac.us-east-2.rds.amazonaws.com",
-            port="5432")
-        
-        cursor = engine.cursor()
-        cursor.execute(
-                    """
-                    CREATE TABLE IF NOT EXISTS recomendations (
-                        advertiser_id VARCHAR(255) PRIMARY KEY,
-                        product_id VARCHAR(255),
-                        model VARCHAR(255)
-                    );
-                    """
-                )
+        top_products.to_csv(f"{TEMP_DATA_PATH}top_products.csv")
 
-        for i in range(len(top_products)):
+        print("Filtered files saved locally")
 
-            adv_id = top_products.advertiser_id.iloc[i]
-            prod_id = top_products.product_id.iloc[i]
-            cursor.execute(
-                f"""
-                INSERT INTO recomendations(advertiser_id, product_id, model)
-                VALUES ('{adv_id}', '{prod_id}', 'top_product');
-                """
-            )
+        # Uploading files
+        s3.upload_file(Filename=f"{TEMP_DATA_PATH}top_products.csv",
+                    Bucket=bucket_name,
+                    Key="airflow/top_products.csv")
 
-        cursor.execute("""SELECT * FROM recomendations;""")
-        rows = cursor.fetchall()
-        for row in rows:
-            print(row)
+        print("top_products uploaded")
 
 
     def top_ctr(bucket_name: str):
         """
         Recomendation model based on products with maximum CTR metric per advertiser
         """
-         # S3 client
+        # S3 client
         s3 = boto3.client("s3")
 
         # Downloading file
@@ -179,6 +155,43 @@ with DAG(
         top_ctr = ctr_data[ctr_data.CTR == ctr_data.CTR_max]
         top_ctr = top_ctr.groupby("advertiser_id").head(1)
         
+        top_ctr.to_csv(f"{TEMP_DATA_PATH}top_ctr.csv")
+
+        print("Filtered files saved locally")
+
+        # Uploading files
+        s3.upload_file(Filename=f"{TEMP_DATA_PATH}top_ctr.csv",
+                    Bucket=bucket_name,
+                    Key="airflow/top_ctr.csv")
+
+        print("top_ctr uploaded")
+
+
+    def upload_to_database(bucket_name: str):
+        '''
+        Upload recomendations to RDS database
+        '''
+         # S3 client
+        s3 = boto3.client("s3")
+
+        # Downloading file
+        s3.download_file(Bucket=bucket_name,
+                        Key="airflow/top_products.csv",
+                        Filename=f"{TEMP_DATA_PATH}top_products.csv")
+        
+        s3.download_file(Bucket=bucket_name,
+                        Key="airflow/top_ctr.csv",
+                        Filename=f"{TEMP_DATA_PATH}top_ctr.csv")
+        
+        # CSV to dataframes
+        top_products = pd.read_csv(f"{TEMP_DATA_PATH}top_products.csv")
+        top_ctr = pd.read_csv(f"{TEMP_DATA_PATH}top_ctr.csv")
+
+        top_products["model"] = "top_products"
+        top_ctr["model"] = "top_ctr"
+
+        recomendations = pd.concat([top_products, top_ctr])
+
         # RDS Connection
         engine = psycopg2.connect(
             database="postgres",
@@ -188,31 +201,34 @@ with DAG(
             port="5432")
         
         cursor = engine.cursor()
-        cursor.execute(
-                    """
-                    CREATE TABLE IF NOT EXISTS recomendations (
-                        advertiser_id VARCHAR(255) PRIMARY KEY,
-                        product_id VARCHAR(255),
-                        model VARCHAR(255)
-                    );
-                    """
-                )
-        
-        for i in range(len(top_ctr)):
 
-            adv_id = top_ctr.advertiser_id.iloc[i]
-            prod_id = top_ctr.product_id.iloc[i]
+        # Create table
+        cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS recomendations (
+                    advertiser_id VARCHAR(255) PRIMARY KEY,
+                    product_id VARCHAR(255),
+                    model VARCHAR(255)
+                );
+                """
+            )
+        
+        # Inserting values
+        for i in range(len(recomendations)):
+
+            adv_id = recomendations.advertiser_id.iloc[i]
+            prod_id = recomendations.product_id.iloc[i]
+            model = recomendations.model.iloc[i]
+
             cursor.execute(
                 f"""
                 INSERT INTO recomendations(advertiser_id, product_id, model)
-                VALUES ('{adv_id}', '{prod_id}', 'top_CTR');
+                VALUES ('{adv_id}', '{prod_id}', '{model}');
                 """
             )
-
-        cursor.execute("""SELECT * FROM recomendations;""")
-        rows = cursor.fetchall()
-        for row in rows:
-            print(row)
+        
+        engine.commit()
+        cursor.close()
 
 
     ## Tasks -----------------------------------------------------------------------------
@@ -251,3 +267,14 @@ with DAG(
     )
 
     load_filter_files >> top_ctr
+
+    upload_to_database = PythonOperator(
+        task_id="upload_to_database",
+        python_callable=upload_to_database,
+        op_kwargs={
+            "bucket_name" : "raw-ads-database-tp-programacion-avanzada"
+        }
+    )
+
+    top_product >> upload_to_database
+    top_ctr >> upload_to_database
