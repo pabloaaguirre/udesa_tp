@@ -1,5 +1,5 @@
 # Libraries
-import datetime
+from datetime import datetime, date, timedelta
 from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
@@ -14,9 +14,9 @@ TEMP_DATA_PATH = os.getcwd() + "/temp_data/"
 
 with DAG(
     dag_id='recomendations_pipeline',
-    schedule_interval=None,
-    start_date=datetime.datetime(2022, 4, 1),
-    catchup=False,
+    schedule_interval= '0 3 * * *',
+    start_date=datetime(2023, 5, 5),
+    catchup=True,
 ) as dag:
     
 
@@ -78,7 +78,7 @@ with DAG(
         print("product_views uploaded")
     
 
-    def top_product(bucket_name: str):
+    def top_product(bucket_name: str, **context):
         """
         Recomendation model based on most visited products of an advertiser
         """
@@ -94,21 +94,24 @@ with DAG(
 
         # Files to DataFrames
         product_views = pd.read_csv(f"{TEMP_DATA_PATH}product_views_filtered.csv")
+        
+        # Last 30 days filter
+        product_views["date"] = pd.to_datetime(product_views["date"]).dt.date
+        product_views = product_views[(product_views.date <= date.today()) &
+          (product_views.date >= date.today() - timedelta(days=30))]
 
         # Top products model
         views_per_product = product_views.groupby(by=["advertiser_id", "product_id"], as_index=False).count()
         views_per_product.rename(columns={"date" : "product_views"}, inplace=True)
-        
-        max_viewed_product = views_per_product[["advertiser_id", "product_views"]].groupby("advertiser_id").max()
-        max_viewed_product.rename(columns={"product_views" : "max_views"}, inplace=True)
-        
-        views_per_product = views_per_product.merge(right=max_viewed_product,
-                                                    how="left",
-                                                    on="advertiser_id")
+        views_per_product['ranking'] = views_per_product.sort_values(['advertiser_id','product_views'], ascending=False) \
+                    .groupby(['advertiser_id']) \
+                    .cumcount() + 1
 
-        top_products = views_per_product[views_per_product["product_views"] == views_per_product["max_views"]]
-        top_products = top_products.groupby(by=["advertiser_id"]).head(1)
-        
+        top_products = views_per_product[views_per_product.ranking <= 20]
+        top_products = top_products[['advertiser_id','product_id','product_views','ranking']]
+        logical_date = context['logical_date']
+        print(logical_date)
+        top_products["date"] = logical_date
         top_products.to_csv(f"{TEMP_DATA_PATH}top_products.csv")
 
         print("Filtered files saved locally")
@@ -120,8 +123,7 @@ with DAG(
 
         print("top_products uploaded")
 
-
-    def top_ctr(bucket_name: str):
+    def top_ctr(bucket_name: str, **context):
         """
         Recomendation model based on products with maximum CTR metric per advertiser
         """
@@ -137,7 +139,12 @@ with DAG(
 
         # Files to DataFrames
         ads_views = pd.read_csv(f"{TEMP_DATA_PATH}ads_views_filtered.csv")
-
+        
+        # Last 30 days filter
+        ads_views["date"] = pd.to_datetime(ads_views["date"]).dt.date
+        ads_views = ads_views[(ads_views.date <= date.today()) &
+          (ads_views.date >= date.today() - timedelta(days=30))]
+        
         # Top CTR calculation
         impressions = ads_views[ads_views.type == "impression"][['advertiser_id', 'product_id', 'type']]
         impressions = impressions.groupby(by=["advertiser_id", "product_id"], as_index=False).count()
@@ -149,12 +156,14 @@ with DAG(
 
         ctr_data = impressions.merge(clicks, how="left", on=["advertiser_id", "product_id"]).fillna(0)
         ctr_data["CTR"] = ctr_data.clicks / ctr_data.impressions
-        max_ctr = ctr_data.groupby(by=["advertiser_id"])["CTR"].max()
-        ctr_data = ctr_data.merge(max_ctr, how="left", on="advertiser_id", suffixes=("","_max"))
+        ctr_data['ranking'] = ctr_data.sort_values(['advertiser_id','CTR'], ascending=False) \
+             .groupby(['advertiser_id']) \
+             .cumcount() + 1
 
-        top_ctr = ctr_data[ctr_data.CTR == ctr_data.CTR_max]
-        top_ctr = top_ctr.groupby("advertiser_id").head(1)
-        
+        top_ctr = ctr_data[ctr_data.ranking <= 20]
+        logical_date = context['logical_date']
+        print(logical_date)
+        top_ctr["date"] = logical_date
         top_ctr.to_csv(f"{TEMP_DATA_PATH}top_ctr.csv")
 
         print("Filtered files saved locally")
@@ -202,31 +211,84 @@ with DAG(
         
         cursor = engine.cursor()
 
-        # Create table
+        # Create recomedations table if not exists
         cursor.execute(
-                """
-                CREATE TABLE IF NOT EXISTS recomendations (
-                    advertiser_id VARCHAR(255) PRIMARY KEY,
-                    product_id VARCHAR(255),
-                    model VARCHAR(255)
-                );
-                """
-            )
-        
-        # Inserting values
+            """
+            CREATE TABLE IF NOT EXISTS recomendations (
+                date DATE,
+                advertiser_id VARCHAR(255),
+                product_id VARCHAR(255),
+                ranking INTEGER,
+                model VARCHAR(255)
+            );
+            """
+        )
+
+        # To upload temp recomendations, we create stating_recomendations table
+        cursor.execute(
+            """
+            DROP TABLE IF EXISTS staging_recomendations;
+            """
+        )
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS staging_recomendations (
+                date DATE,
+                advertiser_id VARCHAR(255),
+                product_id VARCHAR(255),
+                ranking INTEGER,
+                model VARCHAR(255)
+            );
+            """
+        )
+
+        # Inserting values into staging temp table
         for i in range(len(recomendations)):
 
+            date_id = recomendations.date.iloc[i]
             adv_id = recomendations.advertiser_id.iloc[i]
             prod_id = recomendations.product_id.iloc[i]
+            ranking = recomendations.ranking.iloc[i]
             model = recomendations.model.iloc[i]
 
             cursor.execute(
                 f"""
-                INSERT INTO recomendations(advertiser_id, product_id, model)
-                VALUES ('{adv_id}', '{prod_id}', '{model}');
+                INSERT INTO staging_recomendations(date, advertiser_id, product_id, ranking, model)
+                VALUES (DATE('{date_id}'), '{adv_id}', '{prod_id}', '{ranking}', '{model}');
                 """
             )
-        
+
+        # Delete current date from the recomendations table
+        cursor.execute(
+            '''
+            DELETE FROM recomendations AS a
+            USING staging_recomendations AS b
+            WHERE a.date = b.date
+            ;
+            '''
+        )
+
+        # Insert new rows to recomendations table from staging
+        cursor.execute(
+            """
+            INSERT INTO recomendations
+            SELECT
+                a.date,
+                a.advertiser_id,
+                a.product_id,
+                a.ranking,
+                a.model
+            FROM staging_recomendations AS a
+                LEFT JOIN recomendations AS b
+                    ON a.date = b.date
+                    AND a.advertiser_id = b.advertiser_id
+                    AND a.product_id = b.product_id
+                    AND a.model = b.model
+            WHERE b.date IS NULL
+            ;
+            """
+        )
+
         engine.commit()
         cursor.close()
 
@@ -253,7 +315,8 @@ with DAG(
         python_callable=top_product,
         op_kwargs={
             "bucket_name" : "raw-ads-database-tp-programacion-avanzada"
-        }
+        },
+        provide_context=True
     )
 
     load_filter_files >> top_product
@@ -263,7 +326,8 @@ with DAG(
         python_callable=top_ctr,
         op_kwargs={
             "bucket_name" : "raw-ads-database-tp-programacion-avanzada"
-        }
+        },
+        provide_context=True 
     )
 
     load_filter_files >> top_ctr

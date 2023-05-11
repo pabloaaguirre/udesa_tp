@@ -20,7 +20,7 @@ def simulate_data():
     advertisers_catalogs = {}
     for advertiser in all_advertisers:
         advertisers_catalogs[advertiser] = [''.join(random.choices(string.ascii_lowercase + string.digits, k = 6)) for _ in range(100)]
-    possible_dates = [f'2023-04-{day:02d}' for day in range(5,15)]
+    possible_dates = [f'2023-05-{day:02d}' for day in range(1, 32)]
     product_views = [[advertiser := random.choice(all_advertisers),
                     random.choice(advertisers_catalogs[advertiser]),
                     random.choice(possible_dates)] for _ in range(100_000)]
