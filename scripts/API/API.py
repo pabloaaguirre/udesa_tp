@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Path, Query
+from fastapi import FastAPI, status, HTTPException
 import psycopg2
 import pandas as pd
 import numpy as np
@@ -7,7 +7,7 @@ import json
 app = FastAPI()
 
 @app.get("/recommendations/{advertiser_id}/{model}")
-def get_recommendation(advertiser_id: str, model: str):
+def get_recommendation(advertiser_id: str, model: str, status_code=status.HTTP_201_CREATED):
     '''
     Returns the latest recommendation of the top 20 products for a given advertiser_id
     Params:
@@ -22,7 +22,7 @@ def get_recommendation(advertiser_id: str, model: str):
             database="postgres",
             user="postgres",
             password="pepito123",
-            host="localhost",
+            host="udesa-database-1.codj3onk47ac.us-east-2.rds.amazonaws.com",
             port="5432")
 
     print("conn success")
@@ -38,9 +38,23 @@ def get_recommendation(advertiser_id: str, model: str):
     """
 
     df = pd.read_sql(sql=sql_statement, con=conn, parse_dates=['date'])
-    df['date'] = df['date'].dt.strftime('%Y-%m-%d')
 
-    results = json.loads(df[["product_id", "ranking"]].to_json(orient='records'))
+    items = {1: "Item nro 1", 3: "Item nro 3"}
+    @app.get("/item/{item_id}", status_code=status.HTTP_201_CREATED)
+    def get_item(item_id: int):
+        if item_id not in items:
+            raise HTTPException(status_code=404, detail="Item not found")
+        return items[item_id]
+    
+    if len(df) < 1:   
+        detail_text = """advertiser_id or model are invalid.
+        Available models: top_ctr, top_products
+        Advertiser_id can be found in /stats endpoint"""
+        raise HTTPException(status_code=404, detail=detail_text)
+    
+    else:
+        df['date'] = df['date'].dt.strftime('%Y-%m-%d')
+        results = json.loads(df[["product_id", "ranking"]].to_json(orient='records'))
     
     return results
 
@@ -61,7 +75,7 @@ def get_stats():
             database="postgres",
             user="postgres",
             password="pepito123",
-            host="localhost",
+            host="udesa-database-1.codj3onk47ac.us-east-2.rds.amazonaws.com",
             port="5432")
 
     print("conn success")
@@ -148,7 +162,7 @@ def get_history(advertiser_id: str):
             database="postgres",
             user="postgres",
             password="pepito123",
-            host="localhost",
+            host="udesa-database-1.codj3onk47ac.us-east-2.rds.amazonaws.com",
             port="5432")
 
     print("conn success")
@@ -163,9 +177,15 @@ def get_history(advertiser_id: str):
     """
 
     df = pd.read_sql(sql=sql_statement, con=conn, parse_dates=['date'])
-    df['date'] = df['date'].dt.strftime('%Y-%m-%d')
+    
+    if len(df) < 1:
+        detail_text = """advertiser_id is invalid.
+        Advertiser_id can be found in /stats endpoint"""
+        raise HTTPException(status_code=404, detail=detail_text)
 
-    results = json.loads(df[["date", "product_id", "ranking"]].to_json(orient='records'))
+    else:
+        df['date'] = df['date'].dt.strftime('%Y-%m-%d')
+        results = json.loads(df[["date", "product_id", "ranking"]].to_json(orient='records'))
     
     return results
 

@@ -78,7 +78,7 @@ with DAG(
         print("product_views uploaded")
     
 
-    def top_product(bucket_name: str, **context):
+    def top_product(bucket_name: str, ds):
         """
         Recomendation model based on most visited products of an advertiser
         """
@@ -109,9 +109,8 @@ with DAG(
 
         top_products = views_per_product[views_per_product.ranking <= 20]
         top_products = top_products[['advertiser_id','product_id','product_views','ranking']]
-        logical_date = context['logical_date']
-        print(logical_date)
-        top_products["date"] = logical_date
+        print(ds)
+        top_products["date"] = ds
         top_products.to_csv(f"{TEMP_DATA_PATH}top_products.csv")
 
         print("Filtered files saved locally")
@@ -123,7 +122,7 @@ with DAG(
 
         print("top_products uploaded")
 
-    def top_ctr(bucket_name: str, **context):
+    def top_ctr(bucket_name: str, ds):
         """
         Recomendation model based on products with maximum CTR metric per advertiser
         """
@@ -161,9 +160,8 @@ with DAG(
              .cumcount() + 1
 
         top_ctr = ctr_data[ctr_data.ranking <= 20]
-        logical_date = context['logical_date']
-        print(logical_date)
-        top_ctr["date"] = logical_date
+        print(ds)
+        top_ctr["date"] = ds
         top_ctr.to_csv(f"{TEMP_DATA_PATH}top_ctr.csv")
 
         print("Filtered files saved locally")
